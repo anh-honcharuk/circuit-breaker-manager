@@ -1,0 +1,134 @@
+services:
+  app:
+    build: .
+    container_name: resilience_app
+    command:
+      - uvicorn
+      - app.main:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - resilience_network
+    read_only: true
+    tmpfs:
+      - /tmp
+
+  postgres:
+    image: postgres:17
+    container_name: resilience_postgres
+    environment:
+      POSTGRES_DB: resilience
+      POSTGRES_USER: test
+      POSTGRES_PASSWORD: pass
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U test -d resilience"
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - resilience_network
+
+  redis:
+    image: redis:7
+    container_name: resilience_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "redis-cli",
+          "ping"
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - resilience_network
+
+  celery_worker:
+    build: .
+    container_name: resilience_celery
+    command:
+      - celery
+      - -A
+      - app.workers.celery_app.celery_app
+      - worker
+      - --loglevel=info
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - resilience_network
+
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    container_name: resilience_prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    depends_on:
+      app:
+        condition: service_started
+    networks:
+      - resilience_network
+
+  grafana:
+    image: grafana/grafana:12.1.1
+    container_name: resilience_grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      prometheus:
+        condition: service_started
+    networks:
+      - resilience_network
+
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: resilience_jaeger
+    ports:
+      - "16686:16686"
+      - "4317:4317"
+      - "4318:4318"
+    networks:
+      - resilience_network
+
+volumes:
+  postgres_data:
+  redis_data:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  resilience_network:
+    driver: bridge

@@ -1,0 +1,36 @@
+[project]
+name = "microservice-resilience-platform"
+version = "0.1.0"
+description = "Microservice Resilience Platform"
+requires-python = ">=3.12,<4"
+
+dependencies = [
+    "fastapi==0.116.1",
+    "uvicorn[standard]==0.35.0",
+    "pydantic==2.11.7",
+    "pydantic-settings==2.10.1",
+    "sqlalchemy==2.0.52",
+    "asyncpg==0.30.0",
+    "alembic==1.16.4",
+    "redis==6.4.0",
+    "celery==5.6.3",
+    "httpx==0.28.1",
+    "prometheus-client==0.22.1",
+    "structlog==25.4.0",
+    "psycopg[binary]>=3.3.4",
+    "websockets>=17.0.1",
+    "python-jose[cryptography]>=3.5.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest==8.4.1",
+    "pytest-asyncio==1.1.0",
+    "pytest-mock==3.14.1",
+    "pytest-cov==6.2.1",
+    "ruff==0.12.8",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+asyncio_mode = "auto"
